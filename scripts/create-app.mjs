@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-import { cp, lstat, mkdir, readFile, readdir, realpath, writeFile } from "node:fs/promises";
+import { access, cp, lstat, mkdir, readFile, readdir, realpath, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 const templateRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const ignored = new Set(["node_modules", "dist", "target", ".turbo", "output", ".git", ".playwright-cli"]);
 const help = `从 Tauri Monorepo 模板创建项目
 
-用法：pnpm dlx github:Jax-Lifu/Tauri2MonoRepo [项目目录] [选项]
+用法：pnpm dlx pnpm@9.15.9 dlx github:Jax-Lifu/Tauri2MonoRepo [项目目录] [选项]
 不传项目目录时，交互填写以下信息。
 
   --package-name  npm 包名，例如 my-app 或 @team/my-app
@@ -71,6 +71,10 @@ export async function createProject(directory, options) {
 
   const manifest = JSON.parse(await readFile(join(templateRoot, "package.json"), "utf8"));
   const entries = ["package.json", "README.md", ...manifest.files.filter((entry) => entry !== "scripts/create-app.mjs")];
+  await Promise.all(entries.map((entry) => access(join(templateRoot, entry)))).catch((error) => {
+    if (error.code !== "ENOENT") throw error;
+    throw new Error("模板文件不完整；请使用固定版本入口：pnpm dlx pnpm@9.15.9 dlx github:Jax-Lifu/Tauri2MonoRepo");
+  });
   await mkdir(target, { recursive: true });
   for (const entry of entries) {
     await cp(join(templateRoot, entry), join(target, entry), {
@@ -163,6 +167,6 @@ async function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(await realpath(process.argv[1])).href) {
+if (process.argv[1] && await realpath(fileURLToPath(import.meta.url)) === await realpath(process.argv[1])) {
   main().catch((error) => { console.error(`创建失败：${error.message}`); process.exitCode = 1; });
 }

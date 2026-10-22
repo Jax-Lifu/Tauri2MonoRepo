@@ -4,16 +4,16 @@
 
 ## 从模板创建新项目
 
-直接通过 pnpm 从 GitHub 初始化，无需安装全局脚手架或登录 GitHub。不带参数会交互询问项目目录、npm 包名、应用显示名、描述和应用标识：
+直接通过 pnpm 从 GitHub 初始化，无需安装全局脚手架或登录 GitHub。以下命令固定使用模板所需的 pnpm 9.15.9，也适用于本机安装其他 pnpm 版本的情况。不带参数会交互询问项目目录、npm 包名、应用显示名、描述和应用标识：
 
 ```sh
-pnpm dlx github:Jax-Lifu/Tauri2MonoRepo
+pnpm dlx pnpm@9.15.9 dlx github:Jax-Lifu/Tauri2MonoRepo
 ```
 
 也可一次指定全部信息，适合脚本调用：
 
 ```sh
-pnpm dlx github:Jax-Lifu/Tauri2MonoRepo my-new-app --package-name @my-team/my-new-app --app-name "我的应用" --description "我的桌面与 Web 应用" --identifier com.myteam.myapp
+pnpm dlx pnpm@9.15.9 dlx github:Jax-Lifu/Tauri2MonoRepo my-new-app --package-name @my-team/my-new-app --app-name "我的应用" --description "我的桌面与 Web 应用" --identifier com.myteam.myapp
 cd my-new-app
 pnpm install --frozen-lockfile
 pnpm dev:desktop
@@ -22,6 +22,8 @@ pnpm dev:desktop
 只传目录名也可以，其余信息使用默认值；`--help` 查看参数。npm 包名写入根 `package.json`，内部 `@app/*` 工作区包名保留。应用显示名和描述会同步到桌面配置、网页标题与元信息、中英文界面；应用标识决定桌面应用的数据目录。正式发布前请使用自己的反向域名标识。
 
 初始化保留锁文件、共享代码和 CI，拒绝覆盖非空目录；不自动安装依赖或创建远程仓库。已有空目录可用。运行前需安装下方列出的开发依赖。此入口使用 `pnpm dlx`；目前未发布 npm `create-*` 包，因此不使用 `pnpm create 短名称`。
+
+本机已使用 pnpm 9.15.9 时，可简写为 `pnpm dlx github:Jax-Lifu/Tauri2MonoRepo`。不要直接用 pnpm 11 执行该简写：其 GitHub 包处理会过滤模板的 `pnpm-lock.yaml`；推荐入口已固定正确版本。
 
 如果希望同时创建 GitHub 仓库，点击 [使用此模板](https://github.com/Jax-Lifu/Tauri2MonoRepo/generate)，或使用已登录的 GitHub CLI：
 

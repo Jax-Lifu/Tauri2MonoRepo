@@ -126,6 +126,21 @@ describe("project generator", () => {
 });
 
 describe("project generator CLI", () => {
+  it("rejects an incomplete downloaded template before creating the destination", async () => {
+    const directory = await temporaryDirectory();
+    const generator = join(directory, "generator");
+    await mkdir(join(generator, "scripts"), { recursive: true });
+    await writeFile(join(generator, "scripts/create-app.mjs"), await readFile(script));
+    await writeFile(join(generator, "package.json"), JSON.stringify({ type: "module", files: ["pnpm-lock.yaml"] }));
+    await writeFile(join(generator, "README.md"), "# Test template\n");
+    const target = join(directory, "destination");
+    const result = spawnSync(process.execPath, [join(generator, "scripts/create-app.mjs"), target], { encoding: "utf8", timeout: 15_000 });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("模板文件不完整");
+    expect(result.stderr).toContain("pnpm dlx pnpm@9.15.9 dlx");
+    await expect(lstat(target)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it.skipIf(process.platform !== "win32")("fails promptly for an unavailable Windows drive", async () => {
     const drive = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"].find((letter) => !existsSync(`${letter}:\\`));
     expect(drive).toBeDefined();
