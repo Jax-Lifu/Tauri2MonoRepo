@@ -4,18 +4,32 @@
 
 ## 从模板创建新项目
 
-点击 [使用此模板](https://github.com/Jax-Lifu/Tauri2MonoRepo/generate)，填写新仓库名称，即可创建独立项目。也可以使用已登录的 GitHub CLI：
+直接通过 pnpm 从 GitHub 初始化，无需安装全局脚手架或登录 GitHub。不带参数会交互询问项目目录、npm 包名、应用显示名、描述和应用标识：
 
 ```sh
-gh repo create my-new-app --template Jax-Lifu/Tauri2MonoRepo --private --clone
+pnpm dlx github:Jax-Lifu/Tauri2MonoRepo
+```
+
+也可一次指定全部信息，适合脚本调用：
+
+```sh
+pnpm dlx github:Jax-Lifu/Tauri2MonoRepo my-new-app --package-name @my-team/my-new-app --app-name "我的应用" --description "我的桌面与 Web 应用" --identifier com.myteam.myapp
 cd my-new-app
 pnpm install --frozen-lockfile
 pnpm dev:desktop
 ```
 
-`my-new-app` 替换为自己的项目名；需要公开新项目时将 `--private` 改为 `--public`。运行前需安装下方列出的开发依赖。
+只传目录名也可以，其余信息使用默认值；`--help` 查看参数。npm 包名写入根 `package.json`，内部 `@app/*` 工作区包名保留。应用显示名和描述会同步到桌面配置、网页标题与元信息、中英文界面；应用标识决定桌面应用的数据目录。正式发布前请使用自己的反向域名标识。
 
-首次使用请按“改成自己的应用”修改应用名称、图标和唯一的 `identifier`，避免不同项目共用应用数据目录。GitHub 模板会复制文件，不会自动改名或同步模板后续更新；发布所需的密钥和仓库设置也需在新仓库单独配置。
+初始化保留锁文件、共享代码和 CI，拒绝覆盖非空目录；不自动安装依赖或创建远程仓库。已有空目录可用。运行前需安装下方列出的开发依赖。此入口使用 `pnpm dlx`；目前未发布 npm `create-*` 包，因此不使用 `pnpm create 短名称`。
+
+如果希望同时创建 GitHub 仓库，点击 [使用此模板](https://github.com/Jax-Lifu/Tauri2MonoRepo/generate)，或使用已登录的 GitHub CLI：
+
+```sh
+gh repo create my-new-app --template Jax-Lifu/Tauri2MonoRepo --private --clone
+```
+
+GitHub 自带的模板创建只复制文件，不执行上面的个性化初始化；请按“改成自己的应用”修改名称、图标和唯一的 `identifier`。模板后续更新不会自动同步，发布所需的密钥和仓库设置也需在新仓库单独配置。
 
 ## 开始使用
 
