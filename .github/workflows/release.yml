@@ -1,0 +1,96 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: quality
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+          - platform: macos-latest
+            target: x86_64-apple-darwin
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev patchelf xdg-utils
+      - uses: swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - run: pnpm install --frozen-lockfile
+      - name: Validate version and configure updates
+        id: updater
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          UPDATER_PUBLIC_KEY: ${{ vars.TAURI_UPDATER_PUBLIC_KEY }}
+          UPDATER_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          UPDATER_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const { version } = JSON.parse(fs.readFileSync('apps/desktop/package.json', 'utf8'));
+          assert.equal(process.env.RELEASE_TAG, `v${version}`, 'Tag must match apps/desktop/package.json');
+          const publicKey = process.env.UPDATER_PUBLIC_KEY.trim();
+          const privateKey = process.env.UPDATER_PRIVATE_KEY.trim();
+          assert.equal(Boolean(publicKey), Boolean(privateKey), 'Configure both TAURI_UPDATER_PUBLIC_KEY and TAURI_SIGNING_PRIVATE_KEY, or neither');
+          assert.ok(privateKey || !process.env.UPDATER_KEY_PASSWORD, 'A signing password requires a private key');
+          let configArg = '';
+          if (privateKey) {
+            fs.writeFileSync('apps/desktop/src-tauri/tauri.updater.conf.json', JSON.stringify({
+              bundle: { createUpdaterArtifacts: true },
+              plugins: { updater: {
+                pubkey: publicKey,
+                endpoints: [`https://github.com/${process.env.GITHUB_REPOSITORY}/releases/latest/download/latest.json`]
+              } }
+            }, null, 2));
+            configArg = '--config src-tauri/tauri.updater.conf.json';
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `args=${configArg}\nenabled=${Boolean(privateKey)}\n`);
+          console.log(privateKey ? 'Signed updater artifacts enabled.' : 'Updater disabled: building installers without updater signatures.');
+          NODE
+      - name: Build and upload draft release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: "-"
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: App ${{ github.ref_name }}
+          releaseDraft: true
+          prerelease: false
+          uploadUpdaterJson: ${{ steps.updater.outputs.enabled == 'true' }}
+          args: --target ${{ matrix.target }} ${{ steps.updater.outputs.args }} -- --locked

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Tauri Monorepo App</title>
+    <script>
+      (() => {
+        let cache = {};
+        try { cache = JSON.parse(localStorage.getItem("app:theme-cache") || "{}") || {}; } catch {}
+        const root = document.documentElement;
+        root.dataset.theme = ["light", "dark"].includes(cache.theme)
+          ? cache.theme
+          : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        root.dataset.accent = ["blue", "green", "violet", "orange", "rose"].includes(cache.accent) ? cache.accent : "blue";
+        root.dataset.fontSize = ["sm", "md", "lg"].includes(cache.fontSize) ? cache.fontSize : "md";
+        root.dataset.reduceMotion = String(cache.reduceMotion === true);
+      })();
+    </script>
+    <style>
+      html { background: #f5f6f8; color: #182033; }
+      html[data-theme="dark"] { background: #10141c; color: #e8ecf5; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
