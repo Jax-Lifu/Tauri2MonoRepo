@@ -69,15 +69,22 @@ Web 默认地址为 `http://localhost:5173`。开发桌面端使用 `pnpm dev:de
 
 ## 发布 npm 初始化器（模板维护者）
 
-初始化器以根 `package.json` 的 `version` 发布，桌面应用版本仍以 `apps/desktop/package.json` 为准。更新初始化器版本并通过检查后，在模板仓库根目录使用固定的 pnpm 9.15.9 打包，再发布生成的完整压缩包：
+初始化器以根 `package.json` 的 `version` 发布，桌面应用版本仍以 `apps/desktop/package.json` 为准。`npm-release.yml` 仅在 `Jax-Lifu/Tauri2MonoRepo` 运行，使用独立的 `npm-v*` 标签；生成项目中的同名工作流不会发布当前模板的 npm 包。
+
+维护者需在 npm 包 `create-tauri-monorepo` 的 **Settings → Trusted publishing** 中授权 GitHub Actions：组织/用户为 `Jax-Lifu`，仓库为 `Tauri2MonoRepo`，工作流文件名为 `npm-release.yml`，并允许直接执行 `npm publish`。本工作流未设置 GitHub environment，无需填写环境名，也无需配置 `NPM_TOKEN`。认证要求见 [npm Trusted publishing](https://docs.npmjs.com/trusted-publishers/)。
+
+可先在 GitHub Actions 选择 **npm Release → Run workflow** 做打包预演：它会执行现有 CI、使用 pnpm 9.15.9 打包、检查压缩包中的版本/锁文件/忽略文件/CLI，并运行包内初始化器生成临时样例。手动运行不调用 `npm publish`，不提供切换为正式发布的输入；预演通过不代表 npm 会接受该版本，也不代表真实 OIDC 发布授权已验证。
+
+正式发布时，先修改并提交根包版本、推送 `main`，待检查通过后再推送精确匹配的标签。根版本独立于桌面应用版本，无需同步升级桌面版本。例如根版本为 `0.1.1` 时：
 
 ```sh
-pnpm check
-pnpm pack --pack-destination output/npm
-npm publish output/npm/create-tauri-monorepo-0.1.0.tgz --access public --registry=https://registry.npmjs.org/
+git tag npm-v0.1.1
+git push origin npm-v0.1.1
 ```
 
-发布命令中的文件名需与本次版本一致，npm 登录和发布认证由包维护者完成。不要用 `npm publish .` 或 npm 11 重新打包源码，它会过滤模板必需的 `pnpm-lock.yaml`。发布后从空目录执行 `pnpm create tauri-monorepo@latest` 验证安装的版本及生成项目。
+工作流要求包名为 `create-tauri-monorepo`、非 `private`，标签精确等于 `npm-v` 加根版本。CI 通过后，新的 GitHub 托管 Ubuntu runner 使用 Node 24、npm 11.21.0，通过 OIDC 将检查过的 `.tgz` 以 `--provenance --access public` 发布到 npm 官方仓库。只有发布 job 获得 `id-token: write`；桌面安装包仍使用原有 `v*` 标签工作流。
+
+必须由 pnpm 9.15.9 打包并发布该完整压缩包；不要用 `npm publish .` 或 npm 11 重新打包源码，它会过滤模板必需的 `pnpm-lock.yaml`。发布后从空目录执行 `pnpm create tauri-monorepo@latest` 验证安装版本及生成项目，并在 npm 包页面确认 [provenance 来源信息](https://docs.npmjs.com/generating-provenance-statements/)。
 
 ## 项目结构
 

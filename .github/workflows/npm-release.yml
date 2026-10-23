@@ -1,0 +1,102 @@
+name: npm Release
+
+on:
+  push:
+    tags: ["npm-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    if: github.repository == 'Jax-Lifu/Tauri2MonoRepo'
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    if: github.repository == 'Jax-Lifu/Tauri2MonoRepo'
+    needs: quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - name: Install npm with trusted publishing support
+        run: npm install --global npm@11.21.0 --registry=https://registry.npmjs.org/
+      - name: Validate package and release ref
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_REF: ${{ github.ref_name }}
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          assert.equal(pkg.name, 'create-tauri-monorepo');
+          assert.notEqual(pkg.private, true, 'The initializer must be publishable');
+          assert.equal(pkg.packageManager, 'pnpm@9.15.9');
+          assert.equal(pkg.repository.url, 'git+https://github.com/Jax-Lifu/Tauri2MonoRepo.git');
+          assert.ok(['push', 'workflow_dispatch'].includes(process.env.EVENT_NAME));
+          if (process.env.EVENT_NAME === 'push') assert.equal(process.env.RELEASE_REF_TYPE, 'tag');
+          if (process.env.RELEASE_REF_TYPE === 'tag') {
+            assert.equal(process.env.RELEASE_REF, `npm-v${pkg.version}`, 'Tag must match the root package.json version');
+          }
+          NODE
+      - name: Pack with pnpm to preserve the template lockfile
+        run: pnpm pack --pack-destination "$RUNNER_TEMP/npm-package"
+      - name: Verify archive and run the packaged initializer
+        id: package
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { execFileSync } = require('node:child_process');
+          const root = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const directory = path.join(process.env.RUNNER_TEMP, 'npm-package');
+          const archives = fs.readdirSync(directory).filter((name) => name.endsWith('.tgz'));
+          assert.deepEqual(archives, [`create-tauri-monorepo-${root.version}.tgz`]);
+          const tarball = path.join(directory, archives[0]);
+          const scratch = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP, 'npm-smoke-'));
+          execFileSync('tar', ['-xzf', tarball, '-C', scratch]);
+          const packed = path.join(scratch, 'package');
+          const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+          const manifest = readJson(path.join(packed, 'package.json'));
+          assert.equal(manifest.name, root.name);
+          assert.equal(manifest.version, root.version);
+          assert.notEqual(manifest.private, true);
+          assert.equal(manifest.bin['create-tauri-monorepo'], 'scripts/create-app.mjs');
+          for (const file of ['pnpm-lock.yaml', '.gitignore', 'scripts/create-app.mjs']) {
+            assert.deepEqual(fs.readFileSync(path.join(packed, file)), fs.readFileSync(file), `Packed ${file} must match the source`);
+          }
+          const cli = path.join(packed, 'scripts/create-app.mjs');
+          execFileSync(process.execPath, [cli, '--help'], { stdio: 'inherit' });
+          const sample = path.join(scratch, 'sample');
+          execFileSync(process.execPath, [cli, sample, '--package-name', 'npm-release-smoke', '--app-name', 'Npm Release Smoke', '--identifier', 'com.example.npm-release-smoke'], { stdio: 'inherit' });
+          const generated = readJson(path.join(sample, 'package.json'));
+          assert.equal(generated.name, 'npm-release-smoke');
+          assert.equal(generated.private, true);
+          assert.equal(generated.packageManager, 'pnpm@9.15.9');
+          assert.equal(generated.bin, undefined);
+          assert.equal(readJson(path.join(sample, 'apps/desktop/src-tauri/tauri.conf.json')).identifier, 'com.example.npm-release-smoke');
+          for (const file of ['pnpm-lock.yaml', '.gitignore']) {
+            assert.deepEqual(fs.readFileSync(path.join(sample, file)), fs.readFileSync(file));
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `tarball=${tarball}\n`);
+          console.log('Packaged initializer smoke test passed.');
+          NODE
+      - name: Publish the verified archive using OIDC
+        if: github.event_name == 'push' && github.ref_type == 'tag'
+        env:
+          TARBALL: ${{ steps.package.outputs.tarball }}
+        run: npm publish "$TARBALL" --provenance --access public --registry=https://registry.npmjs.org/
