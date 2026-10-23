@@ -46,6 +46,8 @@ describe("project generator", () => {
     expect(manifest).toMatchObject({ name: options.packageName, description: options.description, private: true, packageManager: "pnpm@9.15.9" });
     expect(manifest).not.toHaveProperty("bin");
     expect(manifest).not.toHaveProperty("files");
+    expect(manifest).not.toHaveProperty("repository");
+    expect(manifest).not.toHaveProperty("publishConfig");
     for (const app of ["desktop", "web"]) {
       expect(await json(directory, `apps/${app}/package.json`)).toMatchObject({ name: `@app/${app}`, description: options.description });
       const document = new JSDOM(await readFile(join(directory, `apps/${app}/index.html`), "utf8")).window.document;
@@ -137,7 +139,7 @@ describe("project generator CLI", () => {
     const result = spawnSync(process.execPath, [join(generator, "scripts/create-app.mjs"), target], { encoding: "utf8", timeout: 15_000 });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("模板文件不完整");
-    expect(result.stderr).toContain("pnpm dlx pnpm@9.15.9 dlx");
+    expect(result.stderr).toContain("pnpm create tauri-monorepo@latest");
     await expect(lstat(target)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
@@ -152,6 +154,7 @@ describe("project generator CLI", () => {
   it("shows help without creating a project", async () => {
     const result = cli(await temporaryDirectory(), ["--help"]);
     expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("pnpm create tauri-monorepo");
     expect(result.stdout).toContain("--package-name");
     expect(result.stdout).toContain("--identifier");
   });

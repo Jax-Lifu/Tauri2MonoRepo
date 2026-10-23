@@ -9,7 +9,7 @@ const templateRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const ignored = new Set(["node_modules", "dist", "target", ".turbo", "output", ".git", ".playwright-cli"]);
 const help = `从 Tauri Monorepo 模板创建项目
 
-用法：pnpm dlx pnpm@9.15.9 dlx github:Jax-Lifu/Tauri2MonoRepo [项目目录] [选项]
+用法：pnpm create tauri-monorepo [项目目录] [选项]
 不传项目目录时，交互填写以下信息。
 
   --package-name  npm 包名，例如 my-app 或 @team/my-app
@@ -73,7 +73,7 @@ export async function createProject(directory, options) {
   const entries = ["package.json", "README.md", ...manifest.files.filter((entry) => entry !== "scripts/create-app.mjs")];
   await Promise.all(entries.map((entry) => access(join(templateRoot, entry)))).catch((error) => {
     if (error.code !== "ENOENT") throw error;
-    throw new Error("模板文件不完整；请使用固定版本入口：pnpm dlx pnpm@9.15.9 dlx github:Jax-Lifu/Tauri2MonoRepo");
+    throw new Error("模板文件不完整；请从 npm 重试：pnpm create tauri-monorepo@latest");
   });
   await mkdir(target, { recursive: true });
   for (const entry of entries) {
@@ -102,10 +102,13 @@ export async function createProject(directory, options) {
   await updateJson("package.json", (value) => {
     value.name = packageName;
     value.description = description;
+    value.private = true;
     // pnpm pack strips packageManager from the published manifest.
     value.packageManager ??= "pnpm@9.15.9";
     delete value.bin;
     delete value.files;
+    delete value.repository;
+    delete value.publishConfig;
   });
   for (const app of ["desktop", "web"]) {
     await updateJson(`apps/${app}/package.json`, (value) => { value.description = description; });

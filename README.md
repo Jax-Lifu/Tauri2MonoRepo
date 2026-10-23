@@ -4,16 +4,16 @@
 
 ## 从模板创建新项目
 
-直接通过 pnpm 从 GitHub 初始化，无需安装全局脚手架或登录 GitHub。以下命令固定使用模板所需的 pnpm 9.15.9，也适用于本机安装其他 pnpm 版本的情况。不带参数会交互询问项目目录、npm 包名、应用显示名、描述和应用标识：
+通过 npm 上的 `create-tauri-monorepo` 初始化，无需安装全局脚手架或登录 GitHub。不带参数会交互询问项目目录、npm 包名、应用显示名、描述和应用标识：
 
 ```sh
-pnpm dlx pnpm@9.15.9 dlx github:Jax-Lifu/Tauri2MonoRepo
+pnpm create tauri-monorepo
 ```
 
 也可一次指定全部信息，适合脚本调用：
 
 ```sh
-pnpm dlx pnpm@9.15.9 dlx github:Jax-Lifu/Tauri2MonoRepo my-new-app --package-name @my-team/my-new-app --app-name "我的应用" --description "我的桌面与 Web 应用" --identifier com.myteam.myapp
+pnpm create tauri-monorepo my-new-app --package-name @my-team/my-new-app --app-name "我的应用" --description "我的桌面与 Web 应用" --identifier com.myteam.myapp
 cd my-new-app
 pnpm install --frozen-lockfile
 pnpm dev:desktop
@@ -21,9 +21,9 @@ pnpm dev:desktop
 
 只传目录名也可以，其余信息使用默认值；`--help` 查看参数。npm 包名写入根 `package.json`，内部 `@app/*` 工作区包名保留。应用显示名和描述会同步到桌面配置、网页标题与元信息、中英文界面；应用标识决定桌面应用的数据目录。正式发布前请使用自己的反向域名标识。
 
-初始化保留锁文件、共享代码和 CI，拒绝覆盖非空目录；不自动安装依赖或创建远程仓库。已有空目录可用。运行前需安装下方列出的开发依赖。此入口使用 `pnpm dlx`；目前未发布 npm `create-*` 包，因此不使用 `pnpm create 短名称`。
+初始化保留锁文件、共享代码和 CI，拒绝覆盖非空目录；不自动安装依赖或创建远程仓库。生成项目默认 `private: true`，使用 pnpm 9.15.9。已有空目录可用，运行前需安装下方列出的开发依赖。`pnpm create tauri-monorepo@latest` 可明确获取最新版本。
 
-本机已使用 pnpm 9.15.9 时，可简写为 `pnpm dlx github:Jax-Lifu/Tauri2MonoRepo`。不要直接用 pnpm 11 执行该简写：其 GitHub 包处理会过滤模板的 `pnpm-lock.yaml`；推荐入口已固定正确版本。
+需要直接使用 GitHub 主分支时，也可运行 `pnpm dlx pnpm@9.15.9 dlx github:Jax-Lifu/Tauri2MonoRepo`。此备用入口固定 pnpm 9，以保留模板锁文件；npm 的 `pnpm create` 入口不需要这层调用。
 
 如果希望同时创建 GitHub 仓库，点击 [使用此模板](https://github.com/Jax-Lifu/Tauri2MonoRepo/generate)，或使用已登录的 GitHub CLI：
 
@@ -66,6 +66,18 @@ Web 默认地址为 `http://localhost:5173`。开发桌面端使用 `pnpm dev:de
 | `pnpm build:desktop` | 构建本机桌面安装包，产物位于根 `target/release/bundle` |
 
 `pnpm build` 不生成桌面安装包。跨平台安装包通过下方发布工作流构建；指定 Rust target 时产物位于 `target/<target>/release/bundle`。
+
+## 发布 npm 初始化器（模板维护者）
+
+初始化器以根 `package.json` 的 `version` 发布，桌面应用版本仍以 `apps/desktop/package.json` 为准。更新初始化器版本并通过检查后，在模板仓库根目录使用固定的 pnpm 9.15.9 打包，再发布生成的完整压缩包：
+
+```sh
+pnpm check
+pnpm pack --pack-destination output/npm
+npm publish output/npm/create-tauri-monorepo-0.1.0.tgz --access public --registry=https://registry.npmjs.org/
+```
+
+发布命令中的文件名需与本次版本一致，npm 登录和发布认证由包维护者完成。不要用 `npm publish .` 或 npm 11 重新打包源码，它会过滤模板必需的 `pnpm-lock.yaml`。发布后从空目录执行 `pnpm create tauri-monorepo@latest` 验证安装的版本及生成项目。
 
 ## 项目结构
 
