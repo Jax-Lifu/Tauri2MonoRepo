@@ -23,6 +23,8 @@ pnpm dev:desktop
 
 初始化保留锁文件、共享代码和 CI，拒绝覆盖非空目录；不自动安装依赖或创建远程仓库。生成项目默认 `private: true`，使用 pnpm 9.15.9。已有空目录可用，运行前需安装下方列出的开发依赖。`pnpm create tauri-monorepo@latest` 可明确获取最新版本。
 
+生成项目的 `.template.json` 独立记录模板包、来源版本和仓库；应用自己的版本可以独立演进。后续按[模板更新说明与补丁流程](docs/template-updates.md)审查、选择合入改动，验证后再更新来源版本。
+
 需要直接使用 GitHub 主分支时，也可运行 `pnpm dlx pnpm@9.15.9 dlx github:Jax-Lifu/Tauri2MonoRepo`。此备用入口固定 pnpm 9，以保留模板锁文件；npm 的 `pnpm create` 入口不需要这层调用。
 
 如果希望同时创建 GitHub 仓库，点击 [使用此模板](https://github.com/Jax-Lifu/Tauri2MonoRepo/generate)，或使用已登录的 GitHub CLI：
@@ -66,6 +68,16 @@ Web 默认地址为 `http://localhost:5173`。开发桌面端使用 `pnpm dev:de
 | `pnpm build:desktop` | 构建本机桌面安装包，产物位于根 `target/release/bundle` |
 
 `pnpm build` 不生成桌面安装包。跨平台安装包通过下方发布工作流构建；指定 Rust target 时产物位于 `target/<target>/release/bundle`。
+
+## 独立交付 Web
+
+Web 版本来自 `apps/web/package.json`，与桌面版本分别维护。执行 `pnpm build:web` 后，将 `apps/web/dist` 的完整内容上传到静态 HTTP(S) 服务。CI 全部检查通过后，也会上传可下载的 `web-dist-<commit>` 构建产物；下载并解压即可使用。
+
+默认使用相对资源地址，同一份产物可部署在网站根目录或 `/my-app/` 等子目录；访问目录地址时保留结尾 `/`。导航使用 `#/` 和 `#/settings`，支持刷新、书签及浏览器前进后退，无需服务端配置页面回退规则。相对路径构建见 [Vite 说明](https://vite.dev/guide/build.html#relative-base)。生产服务应让 `index.html` 每次重新校验缓存，带哈希的静态资源可长期缓存。
+
+Web 设置和首屏主题缓存按 `apps/desktop/src-tauri/tauri.conf.json` 的 `identifier` 隔离，构建时自动注入。不同应用必须使用不同标识；更换标识会切换设置空间。旧版固定 `app:*` 存储保留原值，但不自动归入新应用，升级后需重新设置一次偏好。桌面设置和主题缓存保持原位置。
+
+两端共享业务接口和页面，托盘、开机自启、原生更新等按平台能力显示。Web 当前提供本地示例业务；实际服务端、身份认证和业务数据接口由应用项目接入。
 
 ## 发布 npm 初始化器（模板维护者）
 
@@ -111,7 +123,7 @@ crates/core/              不依赖 Tauri 的 Rust 业务逻辑
 1. 修改 `apps/desktop/src-tauri/tauri.conf.json` 中的 `productName`、`identifier` 和窗口标题；应用发布后保持 `identifier` 稳定。
 2. 修改两个应用的页面标题、共享页面与翻译。新增原生业务时先写 `crates/core`，再通过 Tauri 命令和 `Platform` 接口连接 UI。
 3. 修改根目录 `app-icon.svg` 后执行 `pnpm --filter @app/desktop tauri icon ../../app-icon.svg`；也可替换为自己的方形 PNG 图标。
-4. 应用显示版本以 `apps/desktop/package.json` 为来源；发布时同步根 `Cargo.toml` 的 workspace 版本，并更新、提交 `Cargo.lock`。同时提交 `pnpm-lock.yaml`，避免不同机器解析到不同依赖。
+4. 桌面显示版本以 `apps/desktop/package.json` 为来源，Web 显示版本以 `apps/web/package.json` 为来源；发布桌面时同步根 `Cargo.toml` 的 workspace 版本，并更新、提交 `Cargo.lock`。同时提交 `pnpm-lock.yaml`，避免不同机器解析到不同依赖。
 
 ## 扩展共享 UI
 
@@ -127,7 +139,7 @@ pnpm ui:add dialog
 
 ## 检查与发布
 
-`ci.yml` 在推送 `main` 和每次 Pull Request 时执行类型检查、前端测试、Rust 格式/Clippy 检查、两端前端构建和 Rust 测试。GitHub 的分支保护需在仓库设置中将该检查设为必需项。可按项目需要定期执行 `pnpm audit --prod` 检查依赖公告。
+`ci.yml` 在推送 `main` 和每次 Pull Request 时执行类型检查、前端测试、Rust 格式/Clippy 检查、两端前端构建和 Rust 测试，通过后上传 Web 构建产物。GitHub 的分支保护需在仓库设置中将该检查设为必需项。可按项目需要定期执行 `pnpm audit --prod` 检查依赖公告。
 
 `release.yml` 在推送 `v*` 标签时先运行同一套检查，再分别构建 Windows x64、Linux x64、macOS Apple Silicon 与 Intel 安装包。标签必须精确等于 `v` 加 `apps/desktop/package.json` 版本，例如 `v0.1.0`。产物上传到 GitHub Release 草稿，检查各平台安装包后手动发布。
 

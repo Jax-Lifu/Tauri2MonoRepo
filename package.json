@@ -23,7 +23,7 @@
     "packages/ui/package.json", "packages/ui/tsconfig.json", "packages/ui/components.json",
     "packages/ui/LICENSE.shadcn", "packages/ui/src", "Cargo.toml", "Cargo.lock",
     "pnpm-lock.yaml", "pnpm-workspace.yaml", "rust-toolchain.toml",
-    "turbo.json", "vitest.config.ts", "scripts/create-app.mjs"
+    "turbo.json", "vitest.config.ts", "scripts/create-app.mjs", "docs/template-updates.md"
   ],
   "scripts": {
     "dev:web": "pnpm --filter @app/web dev",

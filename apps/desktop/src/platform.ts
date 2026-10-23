@@ -8,6 +8,7 @@ import type { Greeting, Platform } from "@app/shared";
 
 export async function createDesktopPlatform(): Promise<Platform> {
   const updatesConfigured = await invoke<boolean>("get_update_configured");
+  let installation: Promise<void> | undefined;
   return {
     name: "desktop",
     greet: (name) => invoke<Greeting>("greet", { name }),
@@ -31,10 +32,10 @@ export async function createDesktopPlatform(): Promise<Platform> {
             version: update.version,
             notes: update.body,
             dispose: () => update.close(),
-            install: async () => {
+            install: () => installation ??= (async () => {
               await update.downloadAndInstall();
               await relaunch();
-            },
+            })().finally(() => { installation = undefined; }),
           };
         }
       : undefined,

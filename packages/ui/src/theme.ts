@@ -1,6 +1,6 @@
 import type { AppSettings, ThemeMode } from "@app/shared";
 
-export const THEME_CACHE_KEY = "app:theme-cache";
+export const THEME_CACHE_KEY = `${document.documentElement.dataset.storagePrefix ?? "app"}:theme-cache`;
 
 export function resolveTheme(mode: ThemeMode): "light" | "dark" {
   return mode === "system"

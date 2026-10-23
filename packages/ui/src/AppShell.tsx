@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { resolveLocale, type Platform } from "@app/shared";
 import { initI18n, useTranslation } from "@app/i18n";
 import { useSettings } from "./store/settings";
@@ -10,6 +10,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import "./styles/theme.css";
 
 type Route = "home" | "settings";
+const readRoute = (): Route => window.location.hash === "#/settings" ? "settings" : "home";
 
 export function AppShell({ platform, onReady, onError }: {
   platform: Platform;
@@ -18,9 +19,19 @@ export function AppShell({ platform, onReady, onError }: {
 }) {
   const { t } = useTranslation();
   const { ready, error, readFailed } = useSettings();
-  const [route, setRoute] = useState<Route>("home");
+  const [route, setRoute] = useState<Route>(readRoute);
   const [startupError, setStartupError] = useState("");
   const notified = useRef(false);
+  const navigate = useCallback((next: Route) => {
+    setRoute(next);
+    window.location.hash = next === "home" ? "/" : "/settings";
+  }, []);
+
+  useEffect(() => {
+    const onHashChange = () => setRoute(readRoute());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -48,12 +59,12 @@ export function AppShell({ platform, onReady, onError }: {
       });
     };
     const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === ",") { event.preventDefault(); setRoute("settings"); }
+      if ((event.metaKey || event.ctrlKey) && event.key === ",") { event.preventDefault(); navigate("settings"); }
     };
     window.addEventListener("keydown", onKey);
     window.addEventListener("languagechange", onLanguage);
     return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("languagechange", onLanguage); };
-  }, [onError]);
+  }, [onError, navigate]);
 
   return <ErrorBoundary onError={onError}>
     <div className="app-shell">
@@ -61,8 +72,8 @@ export function AppShell({ platform, onReady, onError }: {
         <div className="brand"><span className="brand-mark" aria-hidden="true">t.</span><span>{t("app.title")}</span></div>
         <div className="sidebar-label">{t("app.workspace")}</div>
         <nav className="app-nav" aria-label={t("nav.label")}>
-          <Button variant="ghost" className="h-auto min-h-[40px] text-base" aria-current={route === "home" ? "page" : undefined} onClick={() => setRoute("home")}><span aria-hidden="true">⌂</span>{t("nav.home")}</Button>
-          <Button variant="ghost" className="h-auto min-h-[40px] text-base" aria-current={route === "settings" ? "page" : undefined} onClick={() => setRoute("settings")}><span aria-hidden="true">⚙</span>{t("nav.settings")}</Button>
+          <Button variant="ghost" className="h-auto min-h-[40px] text-base" aria-current={route === "home" ? "page" : undefined} onClick={() => navigate("home")}><span aria-hidden="true">⌂</span>{t("nav.home")}</Button>
+          <Button variant="ghost" className="h-auto min-h-[40px] text-base" aria-current={route === "settings" ? "page" : undefined} onClick={() => navigate("settings")}><span aria-hidden="true">⚙</span>{t("nav.settings")}</Button>
         </nav>
         <div className="sidebar-footer"><span className="platform-label"><span className="status-dot" aria-hidden="true" />{t(`app.${platform.name}`)}</span><p>{t("app.shortcut")} <kbd>Ctrl / ⌘ ,</kbd></p></div>
       </aside>
@@ -74,7 +85,7 @@ export function AppShell({ platform, onReady, onError }: {
             : <Button variant="outline" onClick={() => location.reload()}>{t("error.reload")}</Button>}
         </div>}
         {!ready ? <p className="loading-state" role="status">{t("app.loading")}</p> : route === "home"
-          ? <GreetScreen platform={platform} onSettings={() => setRoute("settings")} onError={onError} />
+          ? <GreetScreen platform={platform} onSettings={() => navigate("settings")} onError={onError} />
           : <SettingsPage platform={platform} onError={onError} />}
       </main>
     </div>

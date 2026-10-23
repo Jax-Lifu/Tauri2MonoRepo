@@ -55,6 +55,63 @@ describe("desktop platform", () => {
     expect(mocks.setTheme).toHaveBeenCalledWith(null);
   });
 
+  it("shares installation across update checks until downloading and relaunching finish", async () => {
+    const { createDesktopPlatform } = await import("./platform");
+    mocks.invoke.mockResolvedValue(true);
+    let finishDownload!: () => void;
+    let finishRelaunch!: () => void;
+    const firstDownload = vi.fn(() => new Promise<void>((resolve) => { finishDownload = resolve; }));
+    const secondDownload = vi.fn(async () => {});
+    const firstClose = vi.fn(async () => {});
+    const secondClose = vi.fn(async () => {});
+    mocks.relaunch.mockImplementation(() => new Promise<void>((resolve) => { finishRelaunch = resolve; }));
+    mocks.check
+      .mockResolvedValueOnce({ version: "0.2.0", downloadAndInstall: firstDownload, close: firstClose })
+      .mockResolvedValueOnce({ version: "0.2.0", downloadAndInstall: secondDownload, close: secondClose });
+    const platform = await createDesktopPlatform();
+    const first = await platform.checkUpdate!();
+    const second = await platform.checkUpdate!();
+
+    const firstInstall = first!.install().finally(() => first!.dispose?.());
+    const secondInstall = second!.install().finally(() => second!.dispose?.());
+    expect(firstDownload).toHaveBeenCalledOnce();
+    expect(secondDownload).not.toHaveBeenCalled();
+    finishDownload();
+    await vi.waitFor(() => expect(mocks.relaunch).toHaveBeenCalledOnce());
+    const duringRelaunch = second!.install();
+    expect(secondDownload).not.toHaveBeenCalled();
+    expect(firstClose).not.toHaveBeenCalled();
+    expect(secondClose).not.toHaveBeenCalled();
+    finishRelaunch();
+    await Promise.all([firstInstall, secondInstall, duringRelaunch]);
+    expect(mocks.relaunch).toHaveBeenCalledOnce();
+    expect(firstClose).toHaveBeenCalledOnce();
+    expect(secondClose).toHaveBeenCalledOnce();
+  });
+
+  it.each(["download", "relaunch"])("allows another update check to retry after a %s failure", async (stage) => {
+    const { createDesktopPlatform } = await import("./platform");
+    mocks.invoke.mockResolvedValue(true);
+    const failure = new Error(`${stage} failed`);
+    const firstDownload = vi.fn(async () => {});
+    const secondDownload = vi.fn(async () => {});
+    if (stage === "download") firstDownload.mockRejectedValueOnce(failure);
+    else mocks.relaunch.mockRejectedValueOnce(failure);
+    mocks.check
+      .mockResolvedValueOnce({ version: "0.2.0", downloadAndInstall: firstDownload, close: vi.fn() })
+      .mockResolvedValueOnce({ version: "0.2.0", downloadAndInstall: secondDownload, close: vi.fn() });
+    const platform = await createDesktopPlatform();
+    const first = await platform.checkUpdate!();
+    const second = await platform.checkUpdate!();
+
+    const results = await Promise.allSettled([first!.install(), second!.install()]);
+    expect(results).toEqual([{ status: "rejected", reason: failure }, { status: "rejected", reason: failure }]);
+    expect(secondDownload).not.toHaveBeenCalled();
+    await expect(second!.install()).resolves.toBeUndefined();
+    expect(secondDownload).toHaveBeenCalledOnce();
+    expect(mocks.relaunch).toHaveBeenCalledTimes(stage === "download" ? 1 : 2);
+  });
+
   it("does not restart if downloading or verifying an update fails", async () => {
     const { createDesktopPlatform } = await import("./platform");
     mocks.invoke.mockResolvedValue(true);

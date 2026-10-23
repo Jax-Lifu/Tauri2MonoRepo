@@ -31,3 +31,9 @@ jobs:
       - run: pnpm check
       - run: pnpm build
       - run: pnpm test:rust
+      - name: Upload Web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist-${{ github.sha }}
+          path: apps/web/dist/
+          if-no-files-found: error

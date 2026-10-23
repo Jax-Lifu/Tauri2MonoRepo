@@ -169,6 +169,15 @@ describe("project generator CLI", () => {
     expect(result.stdout).toContain("pnpm install --frozen-lockfile");
   });
 
+  it("uses a valid default package name while preserving a Chinese directory and app name", async () => {
+    const directory = await temporaryDirectory();
+    const result = cli(directory, ["我的应用"]);
+    expect(result.status, result.stderr).toBe(0);
+    const project = join(directory, "我的应用");
+    expect(await json(project, "package.json")).toMatchObject({ name: "my-app" });
+    expect(await json(project, "apps/desktop/src-tauri/tauri.conf.json")).toMatchObject({ productName: "我的应用", identifier: "com.example.my-app" });
+  });
+
   it("accepts explicit metadata options", async () => {
     const directory = await temporaryDirectory();
     const result = cli(directory, ["custom", "--package-name", "@team/custom", "--app-name", "我的工作台", "--description", "自定义描述", "--identifier", "com.team.custom"]);
@@ -176,6 +185,11 @@ describe("project generator CLI", () => {
     const project = join(directory, "custom");
     expect(await json(project, "package.json")).toMatchObject({ name: "@team/custom", description: "自定义描述" });
     expect(await json(project, "apps/desktop/src-tauri/tauri.conf.json")).toMatchObject({ productName: "我的工作台", identifier: "com.team.custom" });
+    expect(await json(project, ".template.json")).toEqual({
+      package: "create-tauri-monorepo",
+      version: (await json(templateRoot, "package.json")).version,
+      repository: "https://github.com/Jax-Lifu/Tauri2MonoRepo",
+    });
   });
 
   it.each([["--unknown"], [], ["first", "second"]])("fails for invalid arguments %j", async (...args) => {

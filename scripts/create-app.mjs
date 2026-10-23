@@ -134,6 +134,11 @@ export async function createProject(directory, options) {
   const readmePath = join(target, "README.md");
   const readme = await readFile(readmePath, "utf8");
   await writeFile(readmePath, readme.replace(/^# .*\r?\n/, () => `# ${appName}\n${description ? `\n${description}\n` : ""}`));
+  await writeFile(join(target, ".template.json"), `${JSON.stringify({
+    package: "create-tauri-monorepo",
+    version: manifest.version,
+    repository: "https://github.com/Jax-Lifu/Tauri2MonoRepo",
+  }, null, 2)}\n`);
   return target;
 }
 
@@ -157,7 +162,7 @@ async function main() {
     const ask = async (label, fallback) => prompt ? (await prompt.question(`${label}${fallback ? ` (${fallback})` : ""}: `)).trim() || fallback : fallback;
     const directory = positionals[0] || await ask("项目目录", "my-app");
     const directoryName = basename(resolve(directory));
-    const defaultPackage = directoryName.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^[._-]+|[._-]+$/g, "");
+    const defaultPackage = directoryName.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^[._-]+|[._-]+$/g, "") || "my-app";
     const packageName = values["package-name"] ?? await ask("npm 包名", defaultPackage);
     const appName = values["app-name"] ?? await ask("应用显示名", directoryName);
     const description = values.description ?? await ask("项目描述（可留空）", "");

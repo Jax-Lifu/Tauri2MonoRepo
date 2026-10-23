@@ -88,6 +88,12 @@ jobs:
           assert.equal(generated.private, true);
           assert.equal(generated.packageManager, 'pnpm@9.15.9');
           assert.equal(generated.bin, undefined);
+          assert.deepEqual(readJson(path.join(sample, '.template.json')), {
+            package: root.name,
+            version: root.version,
+            repository: 'https://github.com/Jax-Lifu/Tauri2MonoRepo',
+          });
+          assert.ok(fs.existsSync(path.join(sample, 'docs/template-updates.md')));
           assert.equal(readJson(path.join(sample, 'apps/desktop/src-tauri/tauri.conf.json')).identifier, 'com.example.npm-release-smoke');
           for (const file of ['pnpm-lock.yaml', '.gitignore']) {
             assert.deepEqual(fs.readFileSync(path.join(sample, file)), fs.readFileSync(file));

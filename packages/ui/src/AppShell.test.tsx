@@ -19,6 +19,7 @@ function createPlatform(): Platform {
 }
 
 beforeEach(async () => {
+  window.history.replaceState(null, "", "/");
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
   useSettings.setState({ settings: { ...defaultSettings }, ready: false, saving: false, readFailed: false, error: null, platform: null });
   await initI18n("en-US");
@@ -27,6 +28,26 @@ beforeEach(async () => {
 afterEach(cleanup);
 
 describe("shared application flow", () => {
+  it("restores the hash route and follows browser history", async () => {
+    window.history.replaceState(null, "", "/#/settings");
+    const platform = createPlatform();
+    const first = render(<AppShell platform={platform} />);
+    await screen.findByLabelText("Theme");
+    first.unmount();
+    render(<AppShell platform={platform} />);
+    await screen.findByLabelText("Theme");
+    fireEvent.click(screen.getByRole("button", { name: "Home" }));
+    await screen.findByLabelText("Your name");
+    expect(window.location.hash).toBe("#/");
+    window.history.back();
+    await screen.findByLabelText("Theme");
+    window.history.forward();
+    await screen.findByLabelText("Your name");
+    fireEvent.keyDown(window, { key: ",", ctrlKey: true });
+    await screen.findByLabelText("Theme");
+    expect(window.location.hash).toBe("#/settings");
+  });
+
   it("initializes once in StrictMode, greets, and opens settings with a shortcut", async () => {
     const platform = createPlatform();
     const onReady = vi.fn();

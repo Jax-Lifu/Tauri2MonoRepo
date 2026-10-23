@@ -87,6 +87,16 @@ pub fn run() {
             log::info!("App started, version {}", app.package_info().version);
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app, _event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen {
+                has_visible_windows: false,
+                ..
+            } = _event
+            {
+                tray::show_main_window(_app);
+            }
+        });
 }
