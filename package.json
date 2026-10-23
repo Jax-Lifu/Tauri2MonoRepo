@@ -1,6 +1,6 @@
 {
   "name": "create-tauri-monorepo",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Create a Tauri 2 and React monorepo with shared desktop and web UI.",
   "repository": { "type": "git", "url": "git+https://github.com/Jax-Lifu/Tauri2MonoRepo.git" },
   "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/" },
