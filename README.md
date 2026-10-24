@@ -1,5 +1,7 @@
 # Tauri 2 Monorepo 模板
 
+[![npm version](https://img.shields.io/npm/v/create-tauri-monorepo?logo=npm)](https://www.npmjs.com/package/create-tauri-monorepo) [![CI](https://github.com/Jax-Lifu/Tauri2MonoRepo/actions/workflows/ci.yml/badge.svg)](https://github.com/Jax-Lifu/Tauri2MonoRepo/actions/workflows/ci.yml)
+
 桌面端与 Web 端共用 React 页面、设置和业务类型；Rust 核心与 Tauri 解耦。使用 pnpm workspace、Turborepo、Cargo workspace、Tauri 2、React 19、Vite 6、TypeScript、Tailwind CSS v4 和按需引入的 shadcn/ui 组件。
 
 ## 从模板创建新项目

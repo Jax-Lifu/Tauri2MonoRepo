@@ -64,6 +64,9 @@ describe("project generator", () => {
     const metadata = spawnSync("cargo", ["metadata", "--no-deps", "--offline", "--locked", "--format-version", "1"], { cwd: directory, encoding: "utf8", timeout: 15_000 });
     expect(metadata.status, metadata.stderr).toBe(0);
     expect(JSON.parse(metadata.stdout).packages.find((pkg) => pkg.name === "desktop").description).toBe(options.description);
+    const readme = await readFile(join(directory, "README.md"), "utf8");
+    expect(readme.startsWith(`# ${options.appName}\n\n${options.description}\n`)).toBe(true);
+    expect(readme).not.toContain("img.shields.io/npm/v/create-tauri-monorepo");
     for (const path of ["pnpm-lock.yaml", "Cargo.lock", ".gitignore", ".github/workflows/ci.yml", ".github/workflows/release.yml", "scripts/theme-bootstrap.test.mjs"]) {
       expect(await readFile(join(directory, path), "utf8")).toBe(await readFile(join(templateRoot, path), "utf8"));
     }

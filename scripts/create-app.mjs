@@ -135,7 +135,7 @@ export async function createProject(directory, options) {
   }
   const readmePath = join(target, "README.md");
   const readme = await readFile(readmePath, "utf8");
-  await writeFile(readmePath, readme.replace(/^# .*\r?\n/, () => `# ${appName}\n${description ? `\n${description}\n` : ""}`));
+  await writeFile(readmePath, readme.replace(/^# .*\r?\n(?:\r?\n\[!\[npm version\].*\r?\n)?/, () => `# ${appName}\n${description ? `\n${description}\n` : ""}`));
   await writeFile(join(target, ".template.json"), `${JSON.stringify({
     package: "create-tauri-monorepo",
     version: manifest.version,
