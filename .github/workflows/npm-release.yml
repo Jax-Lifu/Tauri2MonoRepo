@@ -94,6 +94,8 @@ jobs:
             repository: 'https://github.com/Jax-Lifu/Tauri2MonoRepo',
           });
           assert.ok(fs.existsSync(path.join(sample, 'docs/template-updates.md')));
+          assert.ok(fs.existsSync(path.join(sample, 'scripts/theme-bootstrap.test.mjs')));
+          assert.ok(!fs.existsSync(path.join(sample, '.github/workflows/npm-release.yml')));
           assert.equal(readJson(path.join(sample, 'apps/desktop/src-tauri/tauri.conf.json')).identifier, 'com.example.npm-release-smoke');
           for (const file of ['pnpm-lock.yaml', '.gitignore']) {
             assert.deepEqual(fs.readFileSync(path.join(sample, file)), fs.readFileSync(file));

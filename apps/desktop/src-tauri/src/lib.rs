@@ -29,7 +29,6 @@ pub fn run() {
                 ])
                 .build(),
         )
-        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init());
 
@@ -47,7 +46,7 @@ pub fn run() {
             )
             .plugin(tauri_plugin_autostart::init(
                 tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-                None,
+                Some(vec!["--minimized"]),
             ))
             .on_window_event(tray::on_window_event);
     }
@@ -59,6 +58,7 @@ pub fn run() {
             commands::read_settings,
             commands::write_settings,
             commands::set_close_to_tray,
+            commands::set_tray_locale,
             commands::frontend_ready,
             commands::get_update_configured
         ])

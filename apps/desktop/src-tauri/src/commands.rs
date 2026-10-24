@@ -1,4 +1,7 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Mutex,
+};
 
 use tauri::Manager;
 
@@ -6,6 +9,15 @@ use tauri::Manager;
 pub struct AppState {
     pub close_to_tray: AtomicBool,
     pub frontend_ready: AtomicBool,
+    pub settings_lock: Mutex<()>,
+}
+
+pub fn should_show_on_ready<I, S>(args: I, close_to_tray: bool) -> bool
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    !(close_to_tray && args.into_iter().any(|arg| arg.as_ref() == "--minimized"))
 }
 
 #[tauri::command]
@@ -16,8 +28,13 @@ pub fn greet(name: &str) -> app_core::Greeting {
 #[tauri::command]
 pub fn read_settings(
     app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
     key: String,
 ) -> Result<Option<serde_json::Value>, String> {
+    let _guard = state
+        .settings_lock
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let path = app
         .path()
         .app_data_dir()
@@ -28,10 +45,15 @@ pub fn read_settings(
 #[tauri::command]
 pub fn write_settings(
     app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
     key: String,
     value: serde_json::Value,
     reset: bool,
 ) -> Result<(), String> {
+    let _guard = state
+        .settings_lock
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let path = app
         .path()
         .app_data_dir()
@@ -46,6 +68,19 @@ pub fn set_close_to_tray(state: tauri::State<'_, AppState>, enabled: bool) {
 }
 
 #[tauri::command]
+pub fn set_tray_locale(app: tauri::AppHandle, locale: String) -> Result<(), String> {
+    #[cfg(desktop)]
+    {
+        crate::tray::set_locale(&app, &locale).map_err(|error| error.to_string())
+    }
+    #[cfg(mobile)]
+    {
+        let _ = (app, locale);
+        Ok(())
+    }
+}
+
+#[tauri::command]
 pub fn frontend_ready(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
@@ -53,8 +88,15 @@ pub fn frontend_ready(
     let window = app
         .get_webview_window("main")
         .ok_or("Main window is unavailable")?;
-    window.show().map_err(|error| error.to_string())?;
-    state.frontend_ready.store(true, Ordering::Relaxed);
+    let first_ready = !state.frontend_ready.swap(true, Ordering::Relaxed);
+    if !first_ready
+        || should_show_on_ready(
+            std::env::args(),
+            state.close_to_tray.load(Ordering::Relaxed),
+        )
+    {
+        window.show().map_err(|error| error.to_string())?;
+    }
     Ok(())
 }
 
@@ -82,7 +124,7 @@ pub fn get_update_configured(app: tauri::AppHandle) -> bool {
 
 #[cfg(all(test, desktop))]
 mod tests {
-    use super::updater_configured;
+    use super::{should_show_on_ready, updater_configured};
     use serde_json::json;
 
     #[test]
@@ -100,5 +142,12 @@ mod tests {
             "pubkey": "public-key-content",
             "endpoints": ["https://example.com/latest.json"]
         }))));
+    }
+
+    #[test]
+    fn minimized_autostart_stays_hidden_only_when_close_to_tray_is_enabled() {
+        assert!(should_show_on_ready(["app"], true));
+        assert!(should_show_on_ready(["app", "--minimized"], false));
+        assert!(!should_show_on_ready(["app", "--minimized"], true));
     }
 }

@@ -1,6 +1,6 @@
 # 跟进模板更新
 
-生成项目的 `.template.json` 记录模板包、来源版本和仓库，独立于应用自己的版本。优先使用固定 npm 版本创建项目，例如 `pnpm create tauri-monorepo@0.1.2 my-app`。GitHub 主分支可能含有尚未发布的改动，其根包版本不足以标识源码；使用该入口时，请另外在来源记录中保存实际提交号。
+生成项目的 `.template.json` 记录模板包、来源版本和仓库，独立于应用自己的版本。优先使用固定 npm 版本创建项目，例如 `pnpm create tauri-monorepo@0.1.3 my-app`。GitHub 主分支可能含有尚未发布的改动，其根包版本不足以标识源码；使用该入口时，请另外在来源记录中保存实际提交号。
 
 旧项目没有来源记录时，先从创建记录确认 npm 版本或 Git 提交，再补充 `.template.json`。无法确认时，逐文件比对后建立基线，不要猜测来源版本。
 
@@ -55,6 +55,15 @@ pnpm test:rust
 目标版本的改动全部合入并验证后，才把 `.template.json` 的 `version` 更新为目标模板版本，并提交应用代码和来源记录。只选择部分改动时保留原版本，在项目更新记录中列出已合入的文件或提交号；不要把部分更新标记为完整升级。
 
 ## 更新说明
+
+### 0.1.3
+
+- 桌面托盘提示优先使用 `tauri.conf.json` 的 `productName`，并随应用语言同步切换托盘菜单文案（`set_tray_locale`）；开机自启传入 `--minimized`，在开启“关闭到系统托盘”时支持静默驻留托盘启动。此改动需一起合入 `apps/desktop/src-tauri/src`、`apps/desktop/src/platform.ts`、`packages/shared/src/platform.ts` 和 `packages/ui/src`。
+- 桌面设置读写增加进程内互斥锁，移除未使用的 `tauri-plugin-opener` 依赖并更新 `Cargo.lock`；Web 存储补齐 `null` 校验与 `reset` 备份逻辑。
+- 设置读取失败时保留首屏主题缓存、禁用自动更新检查与关闭到托盘隐藏，并在设置保存失败时明确展示 `error.settingsSave`。
+- 对齐两端 `index.html` 首屏防闪烁背景色与 `theme.css`，统一 Web 端异步初始化与错误兜底，优化启动更新询问弹窗的本地化文案与更新说明展示。
+- 初始化器生成新项目时过滤 `.github/workflows/npm-release.yml`、保留 `scripts/theme-bootstrap.test.mjs`，且在描述为空时不注入空 `<meta name="description">`。
+- 消除应用构建时的重复 `tsc --noEmit` 调用，在 `turbo.json` 中声明 `VITE_*` 与 `TAURI_ENV_*` 环境变量依赖，在 `packages/tsconfig/base.json` 中开启未使用变量与 switch 穿透检查，并为 `ci.yml` 增加 PR 并发取消策略。
 
 ### 0.1.2
 

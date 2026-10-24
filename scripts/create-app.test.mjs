@@ -64,10 +64,10 @@ describe("project generator", () => {
     const metadata = spawnSync("cargo", ["metadata", "--no-deps", "--offline", "--locked", "--format-version", "1"], { cwd: directory, encoding: "utf8", timeout: 15_000 });
     expect(metadata.status, metadata.stderr).toBe(0);
     expect(JSON.parse(metadata.stdout).packages.find((pkg) => pkg.name === "desktop").description).toBe(options.description);
-    for (const path of ["pnpm-lock.yaml", "Cargo.lock", ".gitignore", ".github/workflows/ci.yml", ".github/workflows/release.yml"]) {
+    for (const path of ["pnpm-lock.yaml", "Cargo.lock", ".gitignore", ".github/workflows/ci.yml", ".github/workflows/release.yml", "scripts/theme-bootstrap.test.mjs"]) {
       expect(await readFile(join(directory, path), "utf8")).toBe(await readFile(join(templateRoot, path), "utf8"));
     }
-    for (const path of ["node_modules", "target", ".git", "apps/desktop/node_modules", "apps/web/dist", "apps/desktop/src-tauri/gen", "apps/desktop/src-tauri/tauri.updater.conf.json", "scripts/create-app.mjs"]) {
+    for (const path of ["node_modules", "target", ".git", "apps/desktop/node_modules", "apps/web/dist", "apps/desktop/src-tauri/gen", "apps/desktop/src-tauri/tauri.updater.conf.json", "scripts/create-app.mjs", ".github/workflows/npm-release.yml"]) {
       await expect(lstat(join(directory, path))).rejects.toMatchObject({ code: "ENOENT" });
     }
   }, 20_000);
@@ -166,6 +166,8 @@ describe("project generator CLI", () => {
     const project = join(directory, "My New App");
     expect(await json(project, "package.json")).toMatchObject({ name: "my-new-app", description: "" });
     expect(await json(project, "apps/desktop/src-tauri/tauri.conf.json")).toMatchObject({ productName: "My New App", identifier: "com.example.my-new-app" });
+    const document = new JSDOM(await readFile(join(project, "apps/web/index.html"), "utf8")).window.document;
+    expect(document.querySelector('meta[name="description"]')).toBeNull();
     expect(result.stdout).toContain("pnpm install --frozen-lockfile");
   });
 

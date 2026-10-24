@@ -19,6 +19,7 @@ export async function createDesktopPlatform(): Promise<Platform> {
     },
     getAppVersion: getVersion,
     setNativeTheme: (theme) => getCurrentWindow().setTheme(theme === "system" ? null : theme),
+    setNativeLocale: (locale) => invoke("set_tray_locale", { locale }),
     getAutostart: isEnabled,
     setAutostart: async (enabled) => {
       if (enabled !== (await isEnabled())) await (enabled ? enable() : disable());

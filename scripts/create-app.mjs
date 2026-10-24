@@ -87,7 +87,8 @@ export async function createProject(directory, options) {
         return !ignored.has(name) && name !== "tauri.updater.conf.json"
           && (!name.startsWith(".env") || name === ".env.example")
           && !/\.(?:key|key\.pub|log)$/.test(name)
-          && path !== "apps/desktop/src-tauri/gen";
+          && path !== "apps/desktop/src-tauri/gen"
+          && path !== ".github/workflows/npm-release.yml";
       },
     });
   }
@@ -114,7 +115,8 @@ export async function createProject(directory, options) {
     await updateJson(`apps/${app}/package.json`, (value) => { value.description = description; });
     const path = join(target, `apps/${app}/index.html`);
     const html = await readFile(path, "utf8");
-    await writeFile(path, html.replace(/<title>.*?<\/title>/, () => `<title>${escapeHtml(appName)}</title>\n    <meta name="description" content="${escapeHtml(description)}" />`));
+    const meta = description ? `\n    <meta name="description" content="${escapeHtml(description)}" />` : "";
+    await writeFile(path, html.replace(/<title>.*?<\/title>/, () => `<title>${escapeHtml(appName)}</title>${meta}`));
   }
   await updateJson("apps/desktop/src-tauri/tauri.conf.json", (value) => {
     value.productName = appName;

@@ -9,9 +9,18 @@ import { AppShell, useSettings } from "@app/ui";
 import { createDesktopPlatform } from "./platform";
 
 const root = createRoot(document.getElementById("root")!);
+let windowReady = false;
+const markWindowReady = () => {
+  if (windowReady) return Promise.resolve();
+  windowReady = true;
+  return invoke("frontend_ready");
+};
 const reportError = (error: unknown) => {
   console.error(error);
   void logError(error instanceof Error ? error.stack ?? error.message : String(error)).catch(console.error);
+  if (!windowReady) {
+    void markWindowReady().catch(console.error);
+  }
 };
 
 window.addEventListener("error", (event) => reportError(event.error ?? event.message));
@@ -23,13 +32,24 @@ async function start() {
   const platform = await createDesktopPlatform();
 
   async function onReady() {
-    await invoke("frontend_ready");
-    if (!useSettings.getState().settings.autoCheckUpdate || !platform.checkUpdate) return;
+    await markWindowReady();
+    const { settings, readFailed } = useSettings.getState();
+    if (readFailed || !settings.autoCheckUpdate || !platform.checkUpdate) return;
     try {
       const update = await platform.checkUpdate();
       if (!update) return;
       try {
-        if (await ask(i18n.t("settings.newVersion", { version: update.version }), { kind: "info" })) {
+        const message = [i18n.t("settings.newVersion", { version: update.version }), update.notes?.trim()]
+          .filter(Boolean)
+          .join("\n\n");
+        if (
+          await ask(message, {
+            title: i18n.t("settings.update"),
+            kind: "info",
+            okLabel: i18n.t("settings.installAndRestart"),
+            cancelLabel: i18n.t("settings.cancel"),
+          })
+        ) {
           await update.install();
         }
       } finally {
@@ -56,5 +76,5 @@ void start().catch((error: unknown) => {
       <button onClick={() => location.reload()}>{i18n.t("error.reload", { defaultValue: "重新加载 / Reload" })}</button>
     </main>,
   );
-  void invoke("frontend_ready").catch(reportError);
+  void markWindowReady().catch(reportError);
 });

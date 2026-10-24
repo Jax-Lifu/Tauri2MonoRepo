@@ -32,9 +32,16 @@ describe("web platform", () => {
     await webPlatform.store.set("settings", { theme: "dark" });
     expect(await webPlatform.store.get("settings")).toEqual({ theme: "dark" });
     const key = `app:${import.meta.env.VITE_APP_IDENTIFIER}:settings`;
-    localStorage.setItem(key, "broken");
-    await expect(webPlatform.store.get("settings")).rejects.toThrow();
-    expect(localStorage.getItem(key)).toBe("broken");
+    for (const invalid of ["broken", "null"]) {
+      localStorage.setItem(key, invalid);
+      await expect(webPlatform.store.get("settings")).rejects.toThrow();
+      expect(localStorage.getItem(key)).toBe(invalid);
+    }
+    await webPlatform.store.reset?.("settings", { theme: "system" });
+    expect(await webPlatform.store.get("settings")).toEqual({ theme: "system" });
+    const backupKey = Object.keys(localStorage).find((entry) => entry.startsWith(`${key}:backup-`));
+    expect(backupKey).toBeDefined();
+    expect(localStorage.getItem(backupKey!)).toBe("null");
   });
 
   it("does not expose desktop capabilities", () => {

@@ -24,12 +24,15 @@ function asError(error: unknown): Error {
 
 async function applyNative(platform: Platform, next: AppSettings, previous?: AppSettings) {
   if (!previous || next.theme !== previous.theme) await platform.setNativeTheme?.(next.theme);
+  const nextLocale = resolveLocale(next.locale);
+  const previousLocale = previous ? resolveLocale(previous.locale) : undefined;
+  if (!previousLocale || nextLocale !== previousLocale) await platform.setNativeLocale?.(nextLocale);
   if (previous && next.launchAtLogin !== previous.launchAtLogin) await platform.setAutostart?.(next.launchAtLogin);
   if (!previous || next.closeToTray !== previous.closeToTray) await platform.setCloseToTray?.(next.closeToTray);
 }
 
-async function applyLocal(settings: AppSettings) {
-  applyAppearance(settings);
+async function applyLocal(settings: AppSettings, persistCache = true) {
+  applyAppearance(settings, persistCache);
   await initI18n(resolveLocale(settings.locale));
 }
 
@@ -49,14 +52,19 @@ export function createSettingsStore() {
           if (readFailed && !reset) throw new Error("Reload or reset settings before making changes");
           const next = migrateSettings({ ...previous, ...patch });
           try {
-            await applyNative(platform, next, previous);
+            await applyNative(platform, next, readFailed ? undefined : previous);
             if (reset && platform.store.reset) await platform.store.reset(STORE_KEY, next);
             else await platform.store.set(STORE_KEY, next);
           } catch (error) {
+            const nextLocale = resolveLocale(next.locale);
+            const previousLocale = resolveLocale(previous.locale);
             const rollback = await Promise.allSettled([
               next.theme !== previous.theme ? platform.setNativeTheme?.(previous.theme) : undefined,
+              nextLocale !== previousLocale ? platform.setNativeLocale?.(previousLocale) : undefined,
               next.launchAtLogin !== previous.launchAtLogin ? platform.setAutostart?.(previous.launchAtLogin) : undefined,
-              next.closeToTray !== previous.closeToTray ? platform.setCloseToTray?.(previous.closeToTray) : undefined,
+              (readFailed || next.closeToTray !== previous.closeToTray)
+                ? platform.setCloseToTray?.(readFailed ? false : previous.closeToTray)
+                : undefined,
             ]);
             const failed = rollback.find((result) => result.status === "rejected");
             if (failed?.status === "rejected") {
@@ -92,21 +100,23 @@ export function createSettingsStore() {
         set({ platform, ready: false, error: null, readFailed: false });
         hydration = (async () => {
           let settings = { ...defaultSettings };
+          let readFailed = false;
           try {
             settings = migrateSettings(await platform.store.get<unknown>(STORE_KEY));
           } catch (error) {
+            readFailed = true;
             set({ error: asError(error), readFailed: true });
           }
           try {
             if (platform.getAutostart) settings.launchAtLogin = await platform.getAutostart();
           } catch (error) {
-            set({ error: asError(error) });
+            if (!get().error) set({ error: asError(error) });
           }
           try {
-            await applyLocal(settings);
-            await applyNative(platform, settings);
+            await applyLocal(settings, !readFailed);
+            await applyNative(platform, readFailed ? { ...settings, closeToTray: false } : settings);
           } catch (error) {
-            set({ error: asError(error) });
+            if (!get().error) set({ error: asError(error) });
           } finally {
             set({ settings, ready: true });
           }

@@ -58,6 +58,8 @@ describe("shared application flow", () => {
     fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Tauri" } });
     fireEvent.click(screen.getByRole("button", { name: "Greet" }));
     expect(await screen.findByText("Hello, Tauri!")).toBeTruthy();
+    fireEvent.keyDown(window, { key: ",", ctrlKey: true, shiftKey: true });
+    expect(screen.queryByLabelText("Theme")).toBeNull();
     fireEvent.keyDown(window, { key: ",", ctrlKey: true });
     expect(await screen.findByLabelText("Theme")).toBeTruthy();
     expect(screen.queryByLabelText("Launch at login")).toBeNull();
@@ -166,5 +168,8 @@ describe("shared application flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Check for updates" }));
     expect(await screen.findByText(/Offline/)).toBeTruthy();
     expect((screen.getByRole("button", { name: "Check for updates" }) as HTMLButtonElement).disabled).toBe(false);
+    vi.mocked(platform.store.set).mockRejectedValueOnce(new Error("Disk full"));
+    fireEvent.change(screen.getByLabelText("Theme"), { target: { value: "dark" } });
+    await waitFor(() => expect(screen.getAllByText("Settings could not be saved. Please try again.")).toHaveLength(2));
   });
 });

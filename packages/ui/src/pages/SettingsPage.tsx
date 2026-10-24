@@ -25,7 +25,7 @@ function Row({ label, description, htmlFor, children }: {
 
 export function SettingsPage({ platform, onError }: { platform: Platform; onError?: (error: unknown) => void }) {
   const { t } = useTranslation();
-  const { settings, update, reset, saving, readFailed } = useSettings();
+  const { settings, update, reset, saving, readFailed, error: settingsError } = useSettings();
   const [version, setVersion] = useState("—");
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null | undefined>();
   const [updateBusy, setUpdateBusy] = useState<"check" | "install" | null>(null);
@@ -64,9 +64,11 @@ export function SettingsPage({ platform, onError }: { platform: Platform; onErro
     busy.current = true;
     setUpdateBusy("check");
     setError("");
+    dispose(updateResource.current);
+    updateResource.current = null;
+    setUpdateInfo(undefined);
     try {
       const result = await platform.checkUpdate();
-      dispose(updateResource.current);
       updateResource.current = result;
       if (alive.current) setUpdateInfo(result);
     } catch (error) {
@@ -160,9 +162,9 @@ export function SettingsPage({ platform, onError }: { platform: Platform; onErro
         <Row label={t("settings.platform")}><span className="value">{t(`app.${platform.name}`)}</span></Row>
       </section>
       <div className="settings-footer">
-        <span className="muted" role="status">{saving ? t("settings.saving") : readFailed ? "" : t("settings.saved")}</span>
+        <span className="muted" role="status">{saving ? t("settings.saving") : readFailed ? "" : settingsError ? t("error.settingsSave") : t("settings.saved")}</span>
         <AlertDialog>
-          <AlertDialogTrigger asChild><Button variant="outline" disabled={saving}>{t("settings.reset")}</Button></AlertDialogTrigger>
+          <AlertDialogTrigger asChild><Button variant="outline" disabled={saving} title={t("settings.resetDescription")}>{t("settings.reset")}</Button></AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>{t("settings.reset")}</AlertDialogTitle>

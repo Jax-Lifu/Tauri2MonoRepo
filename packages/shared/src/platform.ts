@@ -1,4 +1,4 @@
-import type { ThemeMode } from "./settings";
+import type { Locale, ThemeMode } from "./settings";
 
 export interface Greeting {
   message: string;
@@ -24,6 +24,7 @@ export interface Platform {
   store: KeyValueStore;
   getAppVersion(): Promise<string>;
   setNativeTheme?(theme: ThemeMode): Promise<void>;
+  setNativeLocale?(locale: Locale): Promise<void>;
   getAutostart?(): Promise<boolean>;
   setAutostart?(enabled: boolean): Promise<void>;
   setCloseToTray?(enabled: boolean): Promise<void>;

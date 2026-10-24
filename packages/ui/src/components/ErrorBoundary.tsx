@@ -8,8 +8,8 @@ export class ErrorBoundary extends Component<{
 }, { error: Error | null }> {
   state: { error: Error | null } = { error: null };
 
-  static getDerivedStateFromError(error: Error) {
-    return { error };
+  static getDerivedStateFromError(error: unknown) {
+    return { error: error instanceof Error ? error : new Error(String(error)) };
   }
 
   componentDidCatch(error: Error) {

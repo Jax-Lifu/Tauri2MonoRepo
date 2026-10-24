@@ -2,7 +2,11 @@
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["apps/desktop/src-tauri/tauri.conf.json"],
   "tasks": {
-    "build": { "dependsOn": ["^build", "typecheck"], "outputs": ["dist/**"] },
+    "build": {
+      "dependsOn": ["^build", "typecheck"],
+      "env": ["VITE_*", "TAURI_ENV_*"],
+      "outputs": ["dist/**"]
+    },
     "dev": { "cache": false, "persistent": true },
     "typecheck": { "dependsOn": ["^typecheck"] }
   }

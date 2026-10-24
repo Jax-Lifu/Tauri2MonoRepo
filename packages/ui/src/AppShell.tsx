@@ -24,7 +24,9 @@ export function AppShell({ platform, onReady, onError }: {
   const notified = useRef(false);
   const navigate = useCallback((next: Route) => {
     setRoute(next);
-    window.location.hash = next === "home" ? "/" : "/settings";
+    if (readRoute() !== next) {
+      window.location.hash = next === "home" ? "/" : "/settings";
+    }
   }, []);
 
   useEffect(() => {
@@ -48,18 +50,27 @@ export function AppShell({ platform, onReady, onError }: {
 
   useEffect(() => { if (error) onError?.(error); }, [error, onError]);
 
-  useEffect(() => watchSystemTheme(() => applyAppearance(useSettings.getState().settings)), []);
+  useEffect(() => watchSystemTheme(() => {
+    const { settings, readFailed } = useSettings.getState();
+    applyAppearance(settings, !readFailed);
+  }), []);
 
   useEffect(() => {
     const onLanguage = () => {
       const { locale } = useSettings.getState().settings;
-      if (locale === "system") void initI18n(resolveLocale(locale)).catch((error: unknown) => {
-        setStartupError(error instanceof Error ? error.message : String(error));
-        onError?.(error);
-      });
+      if (locale === "system") {
+        const resolved = resolveLocale(locale);
+        void Promise.all([initI18n(resolved), platform.setNativeLocale?.(resolved)]).catch((error: unknown) => {
+          setStartupError(error instanceof Error ? error.message : String(error));
+          onError?.(error);
+        });
+      }
     };
     const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === ",") { event.preventDefault(); navigate("settings"); }
+      if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key === ",") {
+        event.preventDefault();
+        navigate("settings");
+      }
     };
     window.addEventListener("keydown", onKey);
     window.addEventListener("languagechange", onLanguage);
@@ -80,8 +91,11 @@ export function AppShell({ platform, onReady, onError }: {
       <main className="workspace">
         <div className="workspace-bar"><span>{t("app.workspace")}</span><span aria-hidden="true">/</span><strong>{t(`nav.${route}`)}</strong></div>
         {(error || startupError) && <div className="error-banner" role="alert">
-          <div><strong>{readFailed ? t("error.settingsRead") : t("error.operation")}</strong><p>{error?.message || startupError}</p></div>
-          {readFailed ? <Button variant="outline" onClick={() => { void useSettings.getState().hydrate(platform, true).catch((error: unknown) => onError?.(error)); }}>{t("error.retry")}</Button>
+          <div><strong>{readFailed ? t("error.settingsRead") : error ? t("error.settingsSave") : t("error.operation")}</strong><p>{error?.message || startupError}</p></div>
+          {readFailed ? <Button variant="outline" onClick={() => {
+            setStartupError("");
+            void useSettings.getState().hydrate(platform, true).catch((error: unknown) => onError?.(error));
+          }}>{t("error.retry")}</Button>
             : <Button variant="outline" onClick={() => location.reload()}>{t("error.reload")}</Button>}
         </div>}
         {!ready ? <p className="loading-state" role="status">{t("app.loading")}</p> : route === "home"

@@ -87,11 +87,11 @@ Web 设置和首屏主题缓存按 `apps/desktop/src-tauri/tauri.conf.json` 的 
 
 可先在 GitHub Actions 选择 **npm Release → Run workflow** 做打包预演：它会执行现有 CI、使用 pnpm 9.15.9 打包、检查压缩包中的版本/锁文件/忽略文件/CLI，并运行包内初始化器生成临时样例。手动运行不调用 `npm publish`，不提供切换为正式发布的输入；预演通过不代表 npm 会接受该版本，也不代表真实 OIDC 发布授权已验证。
 
-正式发布时，先修改并提交根包版本、推送 `main`，待检查通过后再推送精确匹配的标签。根版本独立于桌面应用版本，无需同步升级桌面版本。例如根版本为 `0.1.2` 时：
+正式发布时，先修改并提交根包版本、推送 `main`，待检查通过后再推送精确匹配的标签。根版本独立于桌面应用版本，无需同步升级桌面版本。例如根版本为 `0.1.3` 时：
 
 ```sh
-git tag npm-v0.1.2
-git push origin npm-v0.1.2
+git tag npm-v0.1.3
+git push origin npm-v0.1.3
 ```
 
 工作流要求包名为 `create-tauri-monorepo`、非 `private`，标签精确等于 `npm-v` 加根版本。CI 通过后，新的 GitHub 托管 Ubuntu runner 使用 Node 24、npm 11.21.0，通过 OIDC 将检查过的 `.tgz` 以 `--provenance --access public` 发布到 npm 官方仓库。只有发布 job 获得 `id-token: write`；桌面安装包仍使用原有 `v*` 标签工作流。

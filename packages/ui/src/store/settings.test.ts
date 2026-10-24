@@ -14,6 +14,7 @@ function platformWith(data: unknown = undefined): Platform {
       set: vi.fn(async <T>(_key: string, value: T) => { saved = value; }),
     },
     setNativeTheme: vi.fn(async () => {}),
+    setNativeLocale: vi.fn(async () => {}),
     setAutostart: vi.fn(async () => {}),
     setCloseToTray: vi.fn(async () => {}),
   };
@@ -73,16 +74,24 @@ describe("settings store", () => {
   });
 
   it("keeps corrupt data untouched until an explicit reset", async () => {
-    const platform = platformWith({ theme: "invalid" });
+    localStorage.setItem(THEME_CACHE_KEY, JSON.stringify({ theme: "dark" }));
+    const platform = {
+      ...platformWith({ theme: "invalid" }),
+      getAutostart: async () => { throw new Error("Autostart query failed"); },
+    };
     const store = createSettingsStore();
     await store.getState().hydrate(platform);
     expect(store.getState().ready).toBe(true);
     expect(store.getState().readFailed).toBe(true);
+    expect(store.getState().error?.message).toContain("theme");
+    expect(JSON.parse(localStorage.getItem(THEME_CACHE_KEY)!)).toEqual({ theme: "dark" });
+    expect(platform.setCloseToTray).toHaveBeenLastCalledWith(false);
     expect(platform.store.set).not.toHaveBeenCalled();
     await expect(store.getState().update({ accent: "rose" })).rejects.toThrow("Reload or reset");
     expect(platform.store.set).not.toHaveBeenCalled();
     await store.getState().reset();
     expect(platform.store.set).toHaveBeenCalledWith("settings", defaultSettings);
+    expect(platform.setCloseToTray).toHaveBeenLastCalledWith(defaultSettings.closeToTray);
     expect(store.getState().readFailed).toBe(false);
   });
 

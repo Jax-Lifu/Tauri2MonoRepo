@@ -31,6 +31,8 @@ describe("desktop platform", () => {
     expect(mocks.invoke).toHaveBeenCalledWith("greet", { name: "Ada" });
     await platform.setCloseToTray?.(true);
     expect(mocks.invoke).toHaveBeenCalledWith("set_close_to_tray", { enabled: true });
+    await platform.setNativeLocale?.("zh-CN");
+    expect(mocks.invoke).toHaveBeenCalledWith("set_tray_locale", { locale: "zh-CN" });
   });
 
   it("waits for durable saving and propagates disk errors", async () => {
